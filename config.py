@@ -1,9 +1,14 @@
+DEBUG = True
+mobile = False
+
 search_term = "Купить постельное бельё"
 
-DEBUG = True
-
 link_masks = [
-    r"*",
+    r".",
 ]
 
-index = 1
+index = 3
+
+if __name__ == "__main__":
+    from main import main
+    main()
