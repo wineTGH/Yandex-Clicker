@@ -26,7 +26,7 @@ class Logger:
         print("Opened log file...")
 
     def log(self, data, action: str):
-        self.file.write(f"{datetime.today().strftime('%Y-%m-%d %H:%M:%S')} --- {str(data)}  --- {action}")
+        self.file.write(f"{datetime.today().strftime('%Y-%m-%d %H:%M:%S')} --- {str(data)}  --- {action}\n")
 
 class VirtualBrowser:
     driver: webdriver.Chrome
