@@ -31,6 +31,8 @@ class VirtualBrowser:
         "ad-link-element": ".//div/div[1]/a",
     }
 
+    logger: Logger
+
     def __init__(self):
         options = webdriver.ChromeOptions()
 
@@ -75,13 +77,32 @@ class VirtualBrowser:
             fix_hairline=True,
         )
 
+        self.logger = Logger()
+
     def find_advert(self, search_term: str):
         self.driver.get("https://ya.ru/")
-        input()
-        search_input = self.driver.find_element(By.XPATH, self.xpath_dict.get("search-input"))
+        try:
+            elem: WebElement = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (By.ID, "js-button")
+                )
+            )
+
+            elem.click()
+        except:
+            self.logger.log("https://ya.ru/", str(self.mobile_config), action="Captcha not found")
+        
+        try:
+            search_input = self.driver.find_element(By.XPATH, self.xpath_dict.get("search-input"))
+        except:
+            self.logger.log("https://ya.ru/", str(self.mobile_config), action="Captcha not solved")
+            return
+        
+        self.logger.log("https://ya.ru/", str(self.mobile_config), action="Captcha solved")
         search_input.send_keys(search_term)
         search_input.submit()
 
+        
         search_cards = self.driver.find_element(By.XPATH, self.xpath_dict.get("search-result"))\
             .find_elements(By.CLASS_NAME, "serp-item")
         
@@ -101,7 +122,7 @@ class VirtualBrowser:
                     link = self.__get_url(ad_link_element)
 
                     if self.__check_link(link):
-                        ad_links.append(link)
+                        ad_links.append(ad_link_element)
 
             except:
                 continue
@@ -113,6 +134,7 @@ class VirtualBrowser:
             ad_link = ad_links[0]
         
         else:
+            self.logger.log("<None>", str(self.mobile_config), action="No ads found")
             return
 
         link = self.__get_url(ad_link)
@@ -120,7 +142,7 @@ class VirtualBrowser:
 
         time.sleep(2)
 
-        Logger().log(link, str(self.mobile_config), action="clicked")
+        self.logger.log(link, str(self.mobile_config), action="clicked")
 
         try:
             elem = WebDriverWait(self.driver, 30).until(
@@ -131,8 +153,8 @@ class VirtualBrowser:
 
             time.sleep(random.randint(*CONFIG.delay_interval))
 
-        finally:
-            print("Page loaded")
+        except:
+            pass
 
 
     def __get_url(self, element: WebElement):

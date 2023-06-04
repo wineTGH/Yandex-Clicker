@@ -5,7 +5,7 @@ DEBUG = True
 mobile = True
 
 # Поисковый запрос
-search_term = "Купить постельное бельё"
+search_term = "Купить ноутбук"
 
 # Шаблоны (регулярные выражения) ссылок
 link_masks = [
@@ -16,4 +16,9 @@ link_masks = [
 # index = 1
 
 # Интервал задержки в секундах [мин, макс]
-delay_interval = [25, 30]
+delay_interval = [1, 2]
+
+
+if __name__ == "__main__":
+    from main import main
+    main()

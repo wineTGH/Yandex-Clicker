@@ -8,12 +8,13 @@ class Logger:
             if not exists('../log'):
                 mkdir('../log')
                 
-            self.file = open(f"../log/{datetime.today().strftime('%Y-%m-%d')}-logs.txt", "a")
-            print("Opened log file...")
+            self.file = open(f"/log/{datetime.today().strftime('%Y-%m-%d')}-logs.txt", "a")
         
         except Exception as e:
             print("!!!Can't open log directory or file!!!")
             print(f'Reason: {e}')
 
     def log(self, *data, action: str):
-        self.file.write(f"{datetime.today().strftime('%Y-%m-%d %H:%M:%S')} --- {' '.join(data)}  --- {action}\n")
+        log_str = f"{datetime.today().strftime('%Y-%m-%d %H:%M:%S')} --- {' '.join(data)}  --- {action}\n"
+        print(f"{datetime.today().strftime('%Y-%m-%d %H:%M:%S')} --- {action}")
+        self.file.write(log_str)
