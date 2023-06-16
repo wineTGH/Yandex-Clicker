@@ -5,10 +5,10 @@ from os.path import exists
 class Logger:
     def __init__(self):
         try:
-            if not exists('../log'):
-                mkdir('../log')
+            if not exists('log'):
+                mkdir('log')
                 
-            self.file = open(f"/log/{datetime.today().strftime('%Y-%m-%d')}-logs.txt", "a")
+            self.file = open(f"log/{datetime.today().strftime('%Y-%m-%d')}-logs.txt", "a")
         
         except Exception as e:
             print("!!!Can't open log directory or file!!!")

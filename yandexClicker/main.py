@@ -10,18 +10,18 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium import webdriver
+from selenium.webdriver.common.proxy import Proxy, ProxyType
 
-from utils import clamp
-from logger import Logger
-import config as CONFIG
-import agents
+from .utils import clamp
+from .logger import Logger
+import yandexClicker.config as CONFIG
+import yandexClicker.agents as agents
 
 
 class VirtualBrowser:
     driver: webdriver.Chrome
-    mobile_config: dict = {
-        "userAgent": "<host>"
-    }
+    mobile_config: dict = {"userAgent": "<host>"}
 
     xpath_dict = {
         "search-input": '//*[@id="text"]',
@@ -33,7 +33,8 @@ class VirtualBrowser:
 
     logger: Logger
 
-    def __init__(self):
+    def __init__(self, type, ip):
+        self.type, self.ip = type, ip
         options = webdriver.ChromeOptions()
 
         if not CONFIG.DEBUG:
@@ -54,17 +55,23 @@ class VirtualBrowser:
             }
             options.add_experimental_option("mobileEmulation", self.mobile_config)
 
-            self.xpath_dict.update({
-                "search-input": '//input[@type="search"]',
-                "text-element": ".//div/div[2]/div[1]/span/span[1]",
-            })
+            self.xpath_dict.update(
+                {
+                    "search-input": '//input[@type="search"]',
+                    "text-element": ".//div/div[2]/div[1]/span/span[1]",
+                }
+            )
         # --- End of mobile settings --- #
 
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option("useAutomationExtension", False)
 
+        # options.add_argument(f"--proxy-server={self.type}://{self.ip}")
+        # options.add_argument(f'--host-resolver-rules="MAP * ~NOTFOUND , EXCLUDE {self.ip[:self.ip.index(":")]}"')
+        
         self.driver = webdriver.Chrome(
-            options=options, executable_path="./Drivers/chromedriver"
+            options=options,
+            executable_path="./Drivers/chromedriver",
         )
 
         stealth(
@@ -81,31 +88,49 @@ class VirtualBrowser:
 
     def find_advert(self, search_term: str):
         self.driver.get("https://ya.ru/")
+
         try:
             elem: WebElement = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located(
-                    (By.ID, "js-button")
-                )
+                EC.presence_of_element_located((By.ID, "js-button"))
+            )
+            elem.click()
+
+        except:
+            self.logger.log(
+                "https://ya.ru/",
+                str(self.mobile_config),
+                self.ip,
+                action="Captcha not found",
             )
 
-            elem.click()
-        except:
-            self.logger.log("https://ya.ru/", str(self.mobile_config), action="Captcha not found")
-        
         try:
-            search_input = self.driver.find_element(By.XPATH, self.xpath_dict.get("search-input"))
+            search_input = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, self.xpath_dict.get("search-input")))
+            )
+            
         except:
-            self.logger.log("https://ya.ru/", str(self.mobile_config), action="Captcha not solved")
+            self.logger.log(
+                "https://ya.ru/",
+                str(self.mobile_config),
+                self.ip,
+                action="Captcha not solved",
+            )
             return
-        
-        self.logger.log("https://ya.ru/", str(self.mobile_config), action="Captcha solved")
+
+        self.logger.log(
+            "https://ya.ru/", str(self.mobile_config), self.ip, action="Captcha solved"
+        )
+
+        if hasattr(CONFIG, "region"):
+            self.__set_region(CONFIG.region)
+
         search_input.send_keys(search_term)
         search_input.submit()
 
-        
-        search_cards = self.driver.find_element(By.XPATH, self.xpath_dict.get("search-result"))\
-            .find_elements(By.CLASS_NAME, "serp-item")
-        
+        search_cards = self.driver.find_element(
+            By.XPATH, self.xpath_dict.get("search-result")
+        ).find_elements(By.CLASS_NAME, "serp-item")
+
         ad_links: list[WebElement] = []
 
         for search_card in search_cards:
@@ -126,15 +151,17 @@ class VirtualBrowser:
 
             except:
                 continue
-        
-        if hasattr(CONFIG, 'index') and len(ad_links) > 0:
+
+        if hasattr(CONFIG, "index") and len(ad_links) > 0:
             ad_link = ad_links[clamp(0, CONFIG.index - 1, len(ad_links) - 1)]
 
         elif len(ad_links) > 0:
             ad_link = ad_links[0]
-        
+
         else:
-            self.logger.log("<None>", str(self.mobile_config), action="No ads found")
+            self.logger.log(
+                "<None>", str(self.mobile_config), self.ip, action="No ads found"
+            )
             return
 
         link = self.__get_url(ad_link)
@@ -142,20 +169,17 @@ class VirtualBrowser:
 
         time.sleep(2)
 
-        self.logger.log(link, str(self.mobile_config), action="clicked")
+        self.logger.log(link, str(self.mobile_config), self.ip, action="clicked")
 
         try:
             elem = WebDriverWait(self.driver, 30).until(
-                EC.presence_of_element_located(
-                    (By.TAG_NAME, "div")
-                )
+                EC.presence_of_element_located((By.TAG_NAME, "div"))
             )
 
             time.sleep(random.randint(*CONFIG.delay_interval))
 
         except:
             pass
-
 
     def __get_url(self, element: WebElement):
         json_data = element.get_attribute("data-bem")
@@ -164,18 +188,22 @@ class VirtualBrowser:
 
         return link
 
-
     def __check_link(self, link: str):
         for link_mask in CONFIG.link_masks:
             if re.match(link_mask, link) is not None:
                 return True
-            
+
         return False
 
-def main():
-    browser = VirtualBrowser()
+    def __set_region(self, region):
+        self.driver.get("https://yandex.ru/tune/geo?retpath=https://ya.ru/&nosync=1")
+        try:
+            city_input = self.driver.find_element(By.CLASS_NAME, "input__control input__input")
+            city_input.send_keys(region)
+            city_input.submit()
+            self.logger.log("https://ya.ru/", str(self.mobile_config), self.ip, action="Region changed")
+        except:
+            self.logger.log("https://ya.ru/", str(self.mobile_config), self.ip, action="Can't change region")
+def main(type, ip):
+    browser = VirtualBrowser(type, ip)
     browser.find_advert(CONFIG.search_term)
-
-
-if __name__ == "__main__":
-    main()

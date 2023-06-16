@@ -18,7 +18,5 @@ link_masks = [
 # Интервал задержки в секундах [мин, макс]
 delay_interval = [1, 2]
 
-
-if __name__ == "__main__":
-    from main import main
-    main()
+# Регион
+# region = "Краснодар"
