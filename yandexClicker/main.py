@@ -33,7 +33,7 @@ class VirtualBrowser:
 
     logger: Logger
 
-    def __init__(self, type, ip):
+    def __init__(self, type: str = "", ip: str = ""):
         self.type, self.ip = type, ip
         options = webdriver.ChromeOptions()
 
@@ -68,7 +68,7 @@ class VirtualBrowser:
 
         # options.add_argument(f"--proxy-server={self.type}://{self.ip}")
         # options.add_argument(f'--host-resolver-rules="MAP * ~NOTFOUND , EXCLUDE {self.ip[:self.ip.index(":")]}"')
-        
+
         self.driver = webdriver.Chrome(
             options=options,
             executable_path="./Drivers/chromedriver",
@@ -88,26 +88,18 @@ class VirtualBrowser:
 
     def find_advert(self, search_term: str):
         self.driver.get("https://ya.ru/")
+        self.__resolve_captcha()
 
-        try:
-            elem: WebElement = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.ID, "js-button"))
-            )
-            elem.click()
-
-        except:
-            self.logger.log(
-                "https://ya.ru/",
-                str(self.mobile_config),
-                self.ip,
-                action="Captcha not found",
-            )
+        if hasattr(CONFIG, "region"):
+            self.__set_region(CONFIG.region)
 
         try:
             search_input = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, self.xpath_dict.get("search-input")))
+                EC.presence_of_element_located(
+                    (By.XPATH, self.xpath_dict.get("search-input"))
+                )
             )
-            
+
         except:
             self.logger.log(
                 "https://ya.ru/",
@@ -117,19 +109,27 @@ class VirtualBrowser:
             )
             return
 
-        self.logger.log(
-            "https://ya.ru/", str(self.mobile_config), self.ip, action="Captcha solved"
-        )
-
-        if hasattr(CONFIG, "region"):
-            self.__set_region(CONFIG.region)
-
         search_input.send_keys(search_term)
         search_input.submit()
 
-        search_cards = self.driver.find_element(
-            By.XPATH, self.xpath_dict.get("search-result")
-        ).find_elements(By.CLASS_NAME, "serp-item")
+        self.__resolve_captcha()
+
+        try:
+            search_cards = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, self.xpath_dict.get("search-result"))
+                )
+            )
+            search_cards = search_cards.find_elements(By.CLASS_NAME, "serp-item")
+
+        except:
+            self.logger.log(
+                "https://ya.ru/search",
+                str(self.mobile_config),
+                self.ip,
+                action="Captcha not solved",
+            )
+            return
 
         ad_links: list[WebElement] = []
 
@@ -198,12 +198,44 @@ class VirtualBrowser:
     def __set_region(self, region):
         self.driver.get("https://yandex.ru/tune/geo?retpath=https://ya.ru/&nosync=1")
         try:
-            city_input = self.driver.find_element(By.CLASS_NAME, "input__control input__input")
+            city_input = self.driver.find_element(
+                By.CSS_SELECTOR, "input[placeholder='Город']"
+            )
+            city_input.clear()
             city_input.send_keys(region)
             city_input.submit()
-            self.logger.log("https://ya.ru/", str(self.mobile_config), self.ip, action="Region changed")
+            
+            self.logger.log(
+                "https://ya.ru/",
+                str(self.mobile_config),
+                self.ip,
+                action="Region changed",
+            )
+        
         except:
-            self.logger.log("https://ya.ru/", str(self.mobile_config), self.ip, action="Can't change region")
-def main(type, ip):
+            self.logger.log(
+                "https://ya.ru/",
+                str(self.mobile_config),
+                self.ip,
+                action="Can't change region",
+            )
+
+    def __resolve_captcha(self):
+        try:
+            elem: WebElement = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.ID, "js-button"))
+            )
+            elem.click()
+
+        except:
+            self.logger.log(
+                "https://ya.ru/",
+                str(self.mobile_config),
+                self.ip,
+                action="Captcha not found",
+            )
+
+
+def main(type: str = "", ip: str = ""):
     browser = VirtualBrowser(type, ip)
     browser.find_advert(CONFIG.search_term)
